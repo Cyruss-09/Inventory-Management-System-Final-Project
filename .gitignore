@@ -1,0 +1,13 @@
+# Database configuration (Contains secrets)
+config/db.php
+
+# Database exports/backups
+includes/database.sql
+
+# Environment/System files
+.vscode/
+Thumbs.db
+*.log
+
+# If you use Composer for PHP dependencies later
+vendor/

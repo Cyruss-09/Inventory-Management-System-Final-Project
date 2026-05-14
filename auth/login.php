@@ -1,35 +1,49 @@
 <?php
+// 1. Session start must be at the very top, before any HTML
 session_start();
 require_once '../config/db.php';
 
+// If user is already logged in, send them to dashboard
+if (isset($_SESSION['user_id'])) {
+    header("Location: ../dashboard.php");
+    exit();
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $user_input = $_POST['username']; // Can be username or email
+    // Sanitize input to prevent Cross-Site Scripting (XSS)
+    $user_input = htmlspecialchars(trim($_POST['username'])); 
     $pass = $_POST['password'];
 
-        try {
-            $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? OR email = ?");
-            $stmt->execute([$user_input, $user_input]);
-            $user = $stmt->fetch();
+    try {
+        // We use prepared statements to block SQL Injection
+        $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? OR email = ? LIMIT 1");
+        $stmt->execute([$user_input, $user_input]);
+        $user = $stmt->fetch();
 
-            if ($user && password_verify($pass, $user['password'])) {
-                // Password is correct, start a session
-                session_start();
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['username'] = $user['username'];
-                
-                header("Location: ../dashboard.php");
-                exit();
-            } else {
-                // Redirect back to login with an error status
-                header("Location: login.php?status=invalid");
-                exit();
-            }
-        } catch(PDOException $e) {
-            echo "Error: " . $e->getMessage();
+        // Use password_verify to check against the hashed password in your DB
+        if ($user && password_verify($pass, $user['password'])) {
+            
+            // Regenerate session ID to prevent Session Fixation attacks
+            session_regenerate_id(true);
+            
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            
+            header("Location: ../dashboard.php");
+            exit();
+        } else {
+            // Generic error message prevents "Account Probing"
+            header("Location: login.php?status=invalid");
+            exit();
+        }
+    } catch(PDOException $e) {
+        // In production, don't echo $e->getMessage() as it reveals DB structure
+        error_log($e->getMessage());
+        header("Location: login.php?status=error");
+        exit();
     }
 }
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -44,32 +58,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <img src="../assets/img/LOGO.png" alt="Cyruss Logo">
         </div>
         <div class="form-side">
-            <form action="../auth/login.php" method="POST">
+            <!-- Action points to the same file -->
+            <form action="login.php" method="POST">
                 <h1>Login</h1>
+                
                 <div class="input-group">
-                    <label>Username</label>
-                    <input type="text" name="username" required>
+                    <label>Username or Email</label>
+                    <!-- Use type="text" to allow either username or email format -->
+                    <input type="text" name="username" placeholder="Enter username or email" required autocomplete="username">
                 </div>
-                <div class="input-group">
-                    <label>Email</label>
-                    <input type="email" name="email" required>
-                </div>
+
                 <div class="input-group">
                     <label>Password</label>
-                    <input type="password" name="password" required>
+                    <input type="password" name="password" placeholder="Enter password" required autocomplete="current-password">
                 </div>
+
                 <div class="btn-container">
                     <button type="submit" class="submit-btn">Log in</button>
                 </div>
+
                 <div class="btn-container">
                     <p>Don't have an account? <a href="../auth/signup.php">Sign up here</a></p>
                 </div>
+
+                <!-- Modal for Error/Success Messages -->
                 <div id="modalOverlay" class="modal-overlay">
                     <div class="modal-box">
                         <div id="modalIcon" class="modal-icon"></div>
                         <h2 id="modalTitle"></h2>
                         <p id="modalMessage"></p>
-                        <button onclick="closeModal()" class="submit-btn">OK</button>
+                        <button type="button" onclick="closeModal()" class="submit-btn">OK</button>
                     </div>
                 </div>
             </form>
