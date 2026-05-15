@@ -11,7 +11,7 @@ if (isset($_POST['update'])) {
     // Check if a new image was uploaded
     if (!empty($_FILES['product_image']['name'])) {
         $fileName = time() . '_' . $_FILES['product_image']['name']; 
-        $targetPath = "../assets/img/" . $fileName;
+        $targetPath = "../assets/img/products/" . $fileName;
 
         // FIX: The temporary file index is 'tmp_name', not 'tmp_tmp'
         if (move_uploaded_file($_FILES['product_image']['tmp_name'], $targetPath)) {

@@ -34,13 +34,34 @@ body {
   object-fit: cover;
 }
 
+/* Base form side setup to support overlays */
 .form-side {
   flex: 1;
   padding: 40px 60px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  margin-bottom: 30px;
+  position: relative; /* Essential for absolute transitions */
+}
+
+/* Shared styling for both forms inside the panel */
+.auth-form {
+  position: absolute;
+  width: calc(100% - 120px); /* Subtracting the side paddings */
+  left: 60px;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: opacity 0.4s ease, transform 0.4s ease, visibility 0.4s;
+  opacity: 1;
+  visibility: visible;
+}
+
+/* The smooth state change transition class */
+.hidden-form {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-40%); /* Subtle raise effect while shifting out */
+  pointer-events: none;
 }
 
 h1 {
@@ -63,19 +84,20 @@ label {
 input {
   width: 100%;
   padding: 10px 15px;
-  border: 1px solid #000;
+  border: 1px solid #00000062;
   border-radius: 20px;
   box-sizing: border-box;
   outline: none;
 }
 
-.btn-container {
-  margin-top: 40px;
-  text-align: center;
+input:focus {
+  border-color: var(--primary-dark);
+  box-shadow: 0 0 5px var(--primary-dark);
 }
 
-.btn-container-signup {
-  margin-top: 15px;
+/* Unified button styling */
+.btn-container, .btn-container-signup {
+  margin-top: 25px;
   text-align: center;
 }
 
@@ -87,10 +109,34 @@ input {
   border-radius: 25px;
   font-size: 1rem;
   cursor: pointer;
+  transition: transform 0.2s ease;
 }
 
+.submit-btn:active {
+  transform: scale(0.97);
+}
+
+/* Switch link styling */
+.switch-text {
+  margin-top: 15px;
+  font-size: 0.85rem;
+  text-align: center;
+  color: #555;
+}
+
+.switch-text a {
+  color: var(--primary-dark);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.switch-text a:hover {
+  text-decoration: underline;
+}
+
+/* Modals */
 .modal-overlay {
-    display: none; /* Hidden by default */
+    display: none;
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0, 0, 0, 0.8);

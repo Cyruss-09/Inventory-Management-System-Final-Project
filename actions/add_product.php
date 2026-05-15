@@ -11,10 +11,11 @@ if (isset($_POST['submit'])) {
 
     if (!empty($_FILES['product_image']['name'])) {
         $imageName = time() . '_' . $_FILES['product_image']['name']; 
-        $targetPath = "../assets/img/" . $imageName;
+        $targetPath = "../assets/img/products/" . $imageName;
 
         if(move_uploaded_file($_FILES['product_image']['tmp_name'], $targetPath)) {
             // File upload success
+            
         }
     }
 

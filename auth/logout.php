@@ -19,6 +19,6 @@ session_destroy();
 
 // 5. Redirect the user to the login page
 // Change 'login.php' to your actual login filename if it's different
-header("location: ../auth/login.php");
+header("location: ../auth/index.php");
 exit;
 ?>

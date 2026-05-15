@@ -31,7 +31,7 @@ try {
             $pPrice = number_format($row['price'], 2);
             $status = htmlspecialchars($row['status'] ?? 'Active');
             $badgeClass = (strtolower($status) == 'active') ? 'active' : 'out-of-stock';
-            $imagePath = "../assets/img/" . (!empty($row['image']) ? $row['image'] : 'product_placeholder.png');
+            $imagePath = "../assets/img/products/" . (!empty($row['image']) ? $row['image'] : 'product_placeholder.png');
 
             echo "<tr>
                     <td><input type='checkbox'></td>

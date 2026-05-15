@@ -1,5 +1,11 @@
 <?php
-// 1. Include the DB connection at the very top
+session_start(); 
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../auth/index.php"); 
+    exit(); 
+}
+
 include 'config/db.php'; 
 ?>
 <!DOCTYPE html>
@@ -10,13 +16,11 @@ include 'config/db.php';
     <title>Inventory Dashboard</title>
     <link rel="stylesheet" href="../assets/css/dashboard.css">
     <link rel="stylesheet" href="../assets/css/inventory.css">
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 
     <div class="container">
-        <!-- Sidebar -->
         <nav class="sidebar">
             <div class="logo-section">
                 <div class="logo-circle">
@@ -34,18 +38,15 @@ include 'config/db.php';
             </div>
         </nav>
 
-        <!-- Main Content -->
         <div class="main-content">
             <div class="product-container">
                 <h2>Products</h2>
                 
-                <!-- Toolbar Section -->
                 <div class="toolbar">
                     <div class="search-box">
                         <i class="fas fa-search"></i>
                         <input type="text" id="searchInput" placeholder="Search products...">
                         
-                        <!-- Integrated Category Filter -->
                         <select id="categoryFilter" style="border: none; background: transparent; cursor: pointer; padding: 5px; border-left: 1px solid #ddd; margin-left: 10px;">
                             <option value="">All Categories</option>
                             <option value="GPU">GPU</option>
@@ -54,6 +55,7 @@ include 'config/db.php';
                             <option value="MOTHERBOARD">MOTHERBOARD</option>
                             <option value="HDD">HDD</option>
                             <option value="SSD">SSD</option>
+                            <option value="PSU">PSU</option>
                             <option value="PERIPHERALS">PERIPHERALS</option>
                         </select>
                     </div>
@@ -62,7 +64,6 @@ include 'config/db.php';
                     </div>
                 </div>
 
-                <!-- Product Table -->
                 <table class="product-table">
                     <thead>
                         <tr>
@@ -94,7 +95,7 @@ include 'config/db.php';
                                     $pPrice = (float)$row['price'];
 
                                     $imageName = !empty($row['image']) ? $row['image'] : 'product_placeholder.png';
-                                    $imagePath = "../assets/img/" . $imageName;
+                                    $imagePath = "../assets/img/products/" . $imageName;
 
                                     echo "<tr>
                                             <td><input type='checkbox'></td>
@@ -132,69 +133,89 @@ include 'config/db.php';
         </div>
     </div>
 
-    <!-- Modal for Adding Product -->
+   <!-- Add Product Modal -->
     <div id="addProductModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-        <div style="background-color: #fff; margin: 5% auto; padding: 25px; width: 400px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
-            <h3 style="margin-top: 0;">Add New Product</h3>
-            <hr>
+        <div style="background-color: #fff; margin: 2% auto; padding: 25px; width: 420px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+            <h3 style="margin-top: 0; color: #333;">Add New Product</h3>
+            <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
+            
             <form action="../actions/add_product.php" method="POST" enctype="multipart/form-data">
-                <div style="margin: 15px 0;">
-                    <label>Product Image:</label>
-                    <input type="file" name="product_image" accept="image/*" required style="width: 100%; margin-top: 5px;">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <div style="display: inline-block; padding: 5px; border: 1px solid #ddd; border-radius: 8px;">
+                        <img id="add_img_preview" src="../assets/img/products/"   style="width: 100px; height: 100px; object-fit: contain; display: block; border-radius: 4px;">
+                    </div>
                 </div>
+
                 <div style="margin: 15px 0;">
-                    <label>Product Name:</label>
-                    <input type="text" name="product_name" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">Product Image:</label>
+                    <input type="file" name="product_image" id="add_image_input" accept="image/*"  required style="width: 100%;">
                 </div>
+
                 <div style="margin: 15px 0;">
-                    <label>Category:</label>
-                    <select name="category" style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">Product Name:</label>
+                    <input type="text" name="product_name" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;">
+                </div>
+
+                <div style="margin: 15px 0;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">Category:</label>
+                    <select name="category" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
                         <option value="GPU">GPU</option>
                         <option value="CPU">CPU</option>
                         <option value="RAM">RAM</option>
                         <option value="MOTHERBOARD">MOTHERBOARD</option>
                         <option value="HDD">HDD</option>
                         <option value="SSD">SSD</option>
+                        <option value="PSU">PSU</option>
                         <option value="PERIPHERALS">PERIPHERALS</option>
                     </select>
                 </div>
+
                 <div style="margin: 15px 0;">
-                    <label>Quantity:</label>
-                    <input type="number" name="quantity" min="0" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">Quantity:</label>
+                    <input type="number" name="quantity" min="0" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;">
                 </div>
+
                 <div style="margin: 15px 0;">
-                    <label>Price (₱):</label>
-                    <input type="number" step="0.01" name="price" min="0" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">Price (₱):</label>
+                    <input type="number" step="0.01" name="price" min="0" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;">
                 </div>
-                <div style="text-align: right; margin-top: 20px;">
-                    <button type="button" onclick="closeModal()" style="background: #eee; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
-                    <button type="submit" name="submit" style="background: #2d3436; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Save Product</button>
+
+                <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" onclick="closeModal()" style="background: #eee; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">Cancel</button>
+                    <button type="submit" name="submit" style="background: #2d3436; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">Save Product</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal for Editing Product -->
+   <!-- Edit Product Modal -->
     <div id="editProductModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-        <div style="background-color: #fff; margin: 5% auto; padding: 25px; width: 400px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
-            <h3 style="margin-top: 0;">Edit Product</h3>
-            <hr>
+        <div style="background-color: #fff; margin: 2% auto; padding: 25px; width: 420px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+            <h3 style="margin-top: 0; color: #333;">Edit Product</h3>
+            <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
+            
             <form action="../actions/update_product.php" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="id" id="edit_id">
-                <div style="text-align: center; margin-bottom: 10px;">
-                    <img id="edit_img_preview" src="" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd;">
+                
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <div style="display: inline-block; padding: 5px; border: 1px solid #ddd; border-radius: 8px;">
+                        <img id="edit_img_preview" src="" style="width: 100px; height: 100px; object-fit: contain; display: block; border-radius: 4px;">
+                    </div>
                 </div>
+
                 <div style="margin: 15px 0;">
-                    <label>Product Image (Optional):</label>
-                    <input type="file" name="product_image" accept="image/*" style="width: 100%; margin-top: 5px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">Product Image (Optional):</label>
+                    <input type="file" name="product_image" id="edit_image_input" accept="image/*" style="width: 100%;">
                 </div>
+
                 <div style="margin: 15px 0;">
-                    <label>Product Name:</label>
-                    <input type="text" name="product_name" id="edit_name" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">Product Name:</label>
+                    <input type="text" name="product_name" id="edit_name" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;">
                 </div>
+
                 <div style="margin: 15px 0;">
-                    <label>Category:</label>
-                    <select name="category" id="edit_category" style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">Category:</label>
+                    <select name="category" id="edit_category" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
                         <option value="GPU">GPU</option>
                         <option value="CPU">CPU</option>
                         <option value="RAM">RAM</option>
@@ -204,17 +225,20 @@ include 'config/db.php';
                         <option value="PERIPHERALS">PERIPHERALS</option>
                     </select>
                 </div>
+
                 <div style="margin: 15px 0;">
-                    <label>Quantity:</label>
-                    <input type="number" name="quantity" id="edit_quantity" min="0" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">Quantity:</label>
+                    <input type="number" name="quantity" id="edit_quantity" min="0" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;">
                 </div>
+
                 <div style="margin: 15px 0;">
-                    <label>Price (₱):</label>
-                    <input type="number" step="0.01" name="price" id="edit_price" min="0" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">Price (₱):</label>
+                    <input type="number" step="0.01" name="price" id="edit_price" min="0" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;">
                 </div>
-                <div style="text-align: right; margin-top: 20px;">
-                    <button type="button" onclick="closeEditModal()" style="background: #eee; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
-                    <button type="submit" name="update" style="background: #2d3436; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Update Product</button>
+
+                <div style="text-align: right; margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" onclick="closeEditModal()" style="background: #eee; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: 600;">Cancel</button>
+                    <button type="submit" name="update" style="background: #2d3436; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: 600;">Update Product</button>
                 </div>
             </form>
         </div>
@@ -223,7 +247,10 @@ include 'config/db.php';
     <script>
         // Modal UI Controls
         function openModal() { document.getElementById('addProductModal').style.display = "block"; }
-        function closeModal() { document.getElementById('addProductModal').style.display = "none"; }
+        function closeModal() { 
+            document.getElementById('addProductModal').style.display = "none";
+            document.getElementById('add_img_preview').src = "../assets/img/products/product_placeholder.png";
+        }
 
         function openEditModal(id, name, category, qty, price, imgPath) {
             document.getElementById('edit_id').value = id;
@@ -235,6 +262,22 @@ include 'config/db.php';
             document.getElementById('editProductModal').style.display = "block";
         }
         function closeEditModal() { document.getElementById('editProductModal').style.display = "none"; }
+
+        // Live Image Preview Logic
+        function setupImagePreview(inputId, previewId) {
+            document.getElementById(inputId).addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                const preview = document.getElementById(previewId);
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) { preview.src = e.target.result; }
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        setupImagePreview('add_image_input', 'add_img_preview');
+        setupImagePreview('edit_image_input', 'edit_img_preview');
 
         window.onclick = function(event) {
             if (event.target.className === 'modal') {
