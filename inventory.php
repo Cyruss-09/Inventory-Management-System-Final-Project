@@ -56,6 +56,7 @@ include 'config/db.php';
                             <option value="HDD">HDD</option>
                             <option value="SSD">SSD</option>
                             <option value="PSU">PSU</option>
+                            <option value="CASE">CASE</option>
                             <option value="PERIPHERALS">PERIPHERALS</option>
                         </select>
                     </div>
@@ -74,7 +75,7 @@ include 'config/db.php';
                             <th>Price</th>
                             <th>Date added</th>
                             <th>Status</th>
-                            <th></th>
+                            <th style="text-align: center;">Actions</th> </tr>
                         </tr>
                     </thead>
                     <tbody id="inventoryTableBody">
@@ -84,7 +85,7 @@ include 'config/db.php';
                                 $stmt = $conn->prepare($query);
                                 $stmt->execute();
 
-                                while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                               while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                                     $id = $row['id'];
                                     $status = htmlspecialchars($row['status'] ?? 'Active');
                                     $badgeClass = (strtolower($status) == 'active') ? 'active' : 'out-of-stock';
@@ -100,25 +101,25 @@ include 'config/db.php';
                                     echo "<tr>
                                             <td><input type='checkbox'></td>
                                             <td class='product-cell'>
-                                                <img src='$imagePath' alt='$pName' style='width: 40px; height: 40px; object-fit: cover; border-radius: 4px; margin-right: 10px;'>
+                                                <img src='$imagePath' alt='$pName' style='width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px;'>
                                                 <span>" . $pName . "</span>
                                             </td>
                                             <td>" . $pCat . "</td>
-                                            <td>" . $pQty . "</td>
+                                            <td style='text-align: center;'>" . $pQty . "</td>
                                             <td><strong>₱" . number_format($pPrice, 2) . "</strong></td>
                                             <td>" . htmlspecialchars($row['date_added']) . "</td>
                                             <td><span class='badge {$badgeClass}'>" . $status . "</span></td>
                                             <td>
-                                                <div class='action-dropdown'>
-                                                    <i class='fas fa-ellipsis-h more-icon' style='cursor:pointer; padding: 5px;'></i>
-                                                    <div class='dropdown-menu'>
-                                                        <a href='javascript:void(0)' onclick=\"openEditModal('$id', '$pName', '$pCat', '$pQty', '$pPrice', '$imagePath')\">
-                                                            <i class='fas fa-edit'></i> Edit
-                                                        </a>
-                                                        <a href='actions/delete_product.php?id=$id' class='text-danger' onclick='return confirm(\"Are you sure?\");'>
+                                                <div style='display: flex; gap: 8px; justify-content: center;'>
+                                                    <button type='button' class='action-btn btn-edit' onclick=\"openEditModal('$id', '$pName', '$pCat', '$pQty', '$pPrice', '$imagePath')\" style='background: #e1f5fe; color: #0288d1; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;'>
+                                                        <i class='fas fa-edit'></i> Edit
+                                                    </button>
+                                                    
+                                                    <a href='actions/delete_product.php?id=$id' onclick='return confirm(\"Are you sure?\");' style='text-decoration: none;'>
+                                                        <button type='button' class='action-btn btn-delete' style='background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;'>
                                                             <i class='fas fa-trash'></i> Delete
-                                                        </a>
-                                                    </div>
+                                                        </button>
+                                                    </a>
                                                 </div>
                                             </td>
                                         </tr>";
@@ -166,6 +167,7 @@ include 'config/db.php';
                         <option value="HDD">HDD</option>
                         <option value="SSD">SSD</option>
                         <option value="PSU">PSU</option>
+                        <option value="CASE">CASE</option>
                         <option value="PERIPHERALS">PERIPHERALS</option>
                     </select>
                 </div>
@@ -222,6 +224,8 @@ include 'config/db.php';
                         <option value="MOTHERBOARD">MOTHERBOARD</option>
                         <option value="HDD">HDD</option>
                         <option value="SSD">SSD</option>
+                        <option value="PSU">PSU</option>
+                        <option value="CASE">CASE</option>
                         <option value="PERIPHERALS">PERIPHERALS</option>
                     </select>
                 </div>

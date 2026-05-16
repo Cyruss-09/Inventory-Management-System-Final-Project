@@ -23,41 +23,44 @@ try {
     $stmt->execute($params);
 
     if ($stmt->rowCount() > 0) {
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+         while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $id = $row['id'];
-            $pName = htmlspecialchars($row['product_name']);
-            $pCat = htmlspecialchars($row['category']);
-            $pQty = (int)$row['quantity'];
-            $pPrice = number_format($row['price'], 2);
             $status = htmlspecialchars($row['status'] ?? 'Active');
             $badgeClass = (strtolower($status) == 'active') ? 'active' : 'out-of-stock';
-            $imagePath = "../assets/img/products/" . (!empty($row['image']) ? $row['image'] : 'product_placeholder.png');
+            
+            $pName = htmlspecialchars($row['product_name']);
+            $pCat  = htmlspecialchars($row['category']);
+            $pQty  = (int)$row['quantity'];
+            $pPrice = (float)$row['price'];
+
+            $imageName = !empty($row['image']) ? $row['image'] : 'product_placeholder.png';
+            $imagePath = "../assets/img/products/" . $imageName;
 
             echo "<tr>
                     <td><input type='checkbox'></td>
                     <td class='product-cell'>
-                        <img src='$imagePath' style='width: 40px; height: 40px; object-fit: cover; border-radius: 4px; margin-right: 10px;'>
-                        <span>$pName</span>
+                        <img src='$imagePath' alt='$pName' style='width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px;'>
+                        <span>" . $pName . "</span>
                     </td>
-                    <td>$pCat</td>
-                    <td>$pQty</td>
-                    <td><strong>₱$pPrice</strong></td>
+                    <td>" . $pCat . "</td>
+                    <td style='text-align: center;'>" . $pQty . "</td>
+                    <td><strong>₱" . number_format($pPrice, 2) . "</strong></td>
                     <td>" . htmlspecialchars($row['date_added']) . "</td>
-                    <td><span class='badge $badgeClass'>$status</span></td>
+                    <td><span class='badge {$badgeClass}'>" . $status . "</span></td>
                     <td>
-                         <div class='action-dropdown'>
-                            <i class='fas fa-ellipsis-h more-icon' style='cursor:pointer;'></i>
-                            <div class='dropdown-menu'>
-                                <a href='javascript:void(0)' onclick=\"openEditModal('$id', '$pName', '$pCat', '$pQty', " . $row['price'] . ", '$imagePath')\">
-                                    <i class='fas fa-edit'></i> Edit
-                                </a>
-                                <a href='actions/delete_product.php?id=$id' class='text-danger'>
+                        <div style='display: flex; gap: 8px; justify-content: center;'>
+                            <button type='button' class='action-btn btn-edit' onclick=\"openEditModal('$id', '$pName', '$pCat', '$pQty', '$pPrice', '$imagePath')\" style='background: #e1f5fe; color: #0288d1; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;'>
+                                <i class='fas fa-edit'></i> Edit
+                            </button>
+                            
+                            <a href='actions/delete_product.php?id=$id' onclick='return confirm(\"Are you sure?\");' style='text-decoration: none;'>
+                                <button type='button' class='action-btn btn-delete' style='background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;'>
                                     <i class='fas fa-trash'></i> Delete
-                                </a>
-                            </div>
+                                </button>
+                            </a>
                         </div>
                     </td>
-                  </tr>";
+                </tr>";
         }
     } else {
         echo "<tr><td colspan='8' style='text-align:center; padding: 20px;'>No results found.</td></tr>";
