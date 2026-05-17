@@ -6,6 +6,9 @@ if (!isset($_SESSION['user_id'])) {
     exit(); 
 }
 
+// Check if the user is an Admin (Defaulting to false if 'role' isn't set in your session yet)
+$isAdmin = isset($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin';
+
 include 'config/db.php'; 
 ?>
 <!DOCTYPE html>
@@ -31,6 +34,8 @@ include 'config/db.php';
             <ul class="nav-links">
                 <li><a href="dashboard.php"><i class="fas fa-th-large"></i> Dashboard</a></li>
                 <li class="active"><a href="inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li><a href="users.php"><i class="fas fa-users-cog"></i> User Management</a></li>
+                <li><a href="settings.php"><i class="fas fa-sliders-h"></i> Settings</a></li>
             </ul>
 
             <div class="logout-section">
@@ -113,14 +118,18 @@ include 'config/db.php';
                                                 <div style='display: flex; gap: 8px; justify-content: center;'>
                                                     <button type='button' class='action-btn btn-edit' onclick=\"openEditModal('$id', '$pName', '$pCat', '$pQty', '$pPrice', '$imagePath')\" style='background: #e1f5fe; color: #0288d1; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;'>
                                                         <i class='fas fa-edit'></i> Edit
-                                                    </button>
-                                                    
-                                                    <a href='actions/delete_product.php?id=$id' onclick='return confirm(\"Are you sure?\");' style='text-decoration: none;'>
+                                                    </button>";
+
+                                    // Only display the delete button if the logged-in user is an Admin
+                                    if ($isAdmin) {
+                                        echo "      <a href='actions/delete_product.php?id=$id' onclick='return confirm(\"Are you sure?\");' style='text-decoration: none;'>
                                                         <button type='button' class='action-btn btn-delete' style='background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;'>
                                                             <i class='fas fa-trash'></i> Delete
                                                         </button>
-                                                    </a>
-                                                </div>
+                                                    </a>";
+                                    }
+
+                                    echo "      </div>
                                             </td>
                                         </tr>";
                                 }
@@ -316,3 +325,5 @@ include 'config/db.php';
     </script>
 </body>
 </html>
+
+

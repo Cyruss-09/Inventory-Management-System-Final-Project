@@ -21,6 +21,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     $email    = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
     $pass     = $_POST['password'];
     $confirm_pass = $_POST['confirm_password'];
+    
+    // Capture the selected role from the form dropdown
+    $role     = isset($_POST['role']) ? $_POST['role'] : 'Staff'; // Default to Staff layout safely
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         header("Location: index.php?status=invalid_email&view=signup");
@@ -40,9 +43,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     $hashed_password = password_hash($pass, PASSWORD_DEFAULT);
 
     try {
-        $sql = "INSERT INTO users (fullname, username, email, password, date_added) VALUES (?, ?, ?, ?, NOW())";
+        $sql = "INSERT INTO users (fullname, username, email, password, role, date_added) VALUES (?, ?, ?, ?, ?, NOW())";
         $stmt = $conn->prepare($sql);
-        $stmt->execute([$fullname, $user, $email, $hashed_password]);
+        $stmt->execute([$fullname, $user, $email, $hashed_password, $role]);
 
         header("Location: index.php?status=success&view=login");
         exit();
@@ -58,22 +61,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 }
 
 // ==========================================
-// HANDLE LOGIN PROCESS
+// HANDLE LOGIN PROCESS (RESTORED FIXED BLOCK)
 // ==========================================
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'login') {
     $active_form = 'login';
-    $user_input = $_POST['username']; 
+    $user_input = trim($_POST['username']); 
     $pass = $_POST['password'];
 
     try {
+        // Look up user by username OR email
         $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? OR email = ?");
         $stmt->execute([$user_input, $user_input]);
-        $user = $stmt->fetch();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         // Verifies user existence and tests the hashed password structure cleanly
         if ($user && password_verify($pass, $user['password'])) {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
+            $_SESSION['role'] = $user['role']; // Store the role in session for layout flags
             
             header("Location: ../dashboard.php");
             exit();
@@ -83,7 +88,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             exit();
         }
     } catch(PDOException $e) {
-        echo "Error: " . $e->getMessage();
+        die("Database Error: " . $e->getMessage());
     }
 }
 
@@ -116,11 +121,11 @@ $statusFlag = isset($_GET['status']) ? htmlspecialchars($_GET['status']) : '';
                     <input type="hidden" name="action" value="login">
                     <h1>Login</h1>
                     <div class="input-group">
-                        <label>Username or Email</label>
+                        <label>Username or Email:</label>
                         <input type="text" name="username" required autocomplete="username" placeholder="Username or Email">
                     </div>
                     <div class="input-group">
-                        <label>Password</label>
+                        <label>Password:</label>
                         <input type="password" name="password" required autocomplete="current-password" placeholder="Password">
                     </div>
                     <div class="btn-container">
@@ -156,6 +161,14 @@ $statusFlag = isset($_GET['status']) ? htmlspecialchars($_GET['status']) : '';
                         <label>Confirm Password:</label>
                         <input type="password" name="confirm_password" required autocomplete="new-password" placeholder="Confirm Password">
                     </div>
+                    <div class="input-group">
+                        <label>Access Permissions Level:</label>
+                        <select name="role" style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; background: #fff;">
+                            <option value="Staff">Staff (Standard Dashboard Access)</option>
+                            <option value="Admin">Admin (Full System Privilege)</option>
+                        </select>
+                    </div>
+
                     <div class="btn-container-signup">
                         <button type="submit" class="submit-btn">Sign Up</button>
                     </div>
@@ -194,7 +207,6 @@ $statusFlag = isset($_GET['status']) ? htmlspecialchars($_GET['status']) : '';
             window.history.pushState({path:newurl}, '', newurl);
         }
 
-        // Native client modal visibility controllers
         function showModal(title, message, isError = true) {
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('modalMessage').innerText = message;
@@ -211,12 +223,10 @@ $statusFlag = isset($_GET['status']) ? htmlspecialchars($_GET['status']) : '';
 
         function closeModal() {
             document.getElementById('modalOverlay').style.display = "none";
-            // Clean URL status params clean after closing
             const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?view=<?php echo $active_form; ?>';
             window.history.pushState({path:cleanUrl}, '', cleanUrl);
         }
 
-        // Intercept backend triggers immediately when document objects bind
         document.addEventListener("DOMContentLoaded", function() {
             const backendStatus = "<?php echo $statusFlag; ?>";
             
@@ -229,7 +239,7 @@ $statusFlag = isset($_GET['status']) ? htmlspecialchars($_GET['status']) : '';
             } else if (backendStatus === "invalid_email") {
                 showModal("Invalid Email", "Please enter a correctly formatted email address structure.", true);
             } else if (backendStatus === "exists") {
-                showModal("Account Conflict", "This username or email address is already registered to a manager account.", true);
+                showModal("Account Conflict", "This username or email address is already registered.", true);
             } else if (backendStatus === "success") {
                 showModal("Registration Successful!", "Your account has been created. You can log in now.", false);
             }

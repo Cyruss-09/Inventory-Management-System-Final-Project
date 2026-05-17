@@ -1,21 +1,30 @@
 <?php
-// 1. ALWAYS start the session and check authentication first (Security!)
 session_start();
+
+// 1. Authenticate User: Redirect if not logged in
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../auth/login.php");
+    header("Location: ../../auth/index.php");
     exit();
 }
 
-// 2. Include database connection
-// Adjust this path depending on where delete_product.php is located relative to db.php
-require_once '../config/db.php'; 
+// 2. Authorize User: Deny access if they are not an Admin
+if (!isset($_SESSION['role']) || strtolower($_SESSION['role']) !== 'admin') {
+    // Redirect back to inventory with an unauthorized error status
+    header("Location: ../inventory.php?status=unauthorized");
+    exit();
+}
 
-// 3. Check if ID is provided in the URL
-if (isset($_GET['id'])) {
-    $id = $_GET['id'];
+// 3. Process Deletion if ID is provided
+if (isset($_GET['id']) && !empty($_GET['id'])) {
+    
+    // Include your database configuration file
+    // Adjust this path if your directory structure is different (e.g., '../config/db.php')
+    include '../config/db.php'; 
+
+    $id = (int)$_GET['id'];
 
     try {
-        // --- STEP A: Fetch the image filename from the database before deleting the row ---
+        // Step A: Fetch the image filename first so we can delete the actual file from the server
         $imgQuery = "SELECT image FROM products WHERE id = :id";
         $imgStmt = $conn->prepare($imgQuery);
         $imgStmt->execute([':id' => $id]);
@@ -24,34 +33,40 @@ if (isset($_GET['id'])) {
         if ($product) {
             $imageName = $product['image'];
             
-            // Define the target directory where images are stored
-            $targetDir = "../assets/img/products/";
-            $filePath = $targetDir . $imageName;
+            // Step B: Execute the database deletion
+            $deleteQuery = "SELECT * FROM products WHERE id = :id"; // Safe practice placeholder
+            $deleteQuery = "DELETE FROM products WHERE id = :id";
+            $deleteStmt = $conn->prepare($deleteQuery);
+            $result = $deleteStmt->execute([':id' => $id]);
 
-            // --- STEP B: Delete the physical file if it exists ---
-            // Make sure you don't accidently delete your default placeholder image!
-            if (!empty($imageName) && $imageName !== 'product_placeholder.png') {
-                if (file_exists($filePath)) {
-                    unlink($filePath); // This deletes the physical file from the folder
+            if ($result) {
+                // Step C: If DB deletion succeeded, delete the physical file from the asset folder
+                // (Skips placeholder image so it isn't lost for other items)
+                if (!empty($imageName) && $imageName !== 'product_placeholder.png') {
+                    $filePath = "../../assets/img/products/" . $imageName;
+                    if (file_exists($filePath)) {
+                        unlink($filePath);
+                    }
                 }
+                
+                // Redirect back with success message
+                header("Location: ../inventory.php?status=deleted");
+                exit();
             }
         }
-
-        // --- STEP C: Now delete the record from the database ---
-        $deleteQuery = "DELETE FROM products WHERE id = :id";
-        $deleteStmt = $conn->prepare($deleteQuery);
-        $deleteStmt->execute([':id' => $id]);
-
-        // Redirect back to inventory with a success message
-        header("Location: ../inventory.php?status=deleted");
+        
+        // If product ID didn't exist in DB
+        header("Location: ../inventory.php?status=not_found");
         exit();
 
     } catch (PDOException $e) {
-        // Handle database errors gracefully
-        die("Error deleting product: " . $e->getMessage());
+        // Fallback error logging/handling
+        header("Location: ../inventory.php?status=error");
+        exit();
     }
+
 } else {
-    // If no ID was passed, redirect back
-    header("Location: ../inventory.php");
+    // If no ID was provided in the URL query parameters
+    header("Location: ../inventory.php?status=invalid_id");
     exit();
 }

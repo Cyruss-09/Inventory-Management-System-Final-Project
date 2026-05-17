@@ -66,6 +66,8 @@ try {
             <ul class="nav-links">
                 <li class="active"><a href="#"><i class="fas fa-th-large"></i> Dashboard</a></li>
                 <li><a href="inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li><a href="users.php"><i class="fas fa-users-cog"></i> User Management</a></li>
+                <li><a href="settings.php"><i class="fas fa-sliders-h"></i> Settings</a></li>
             </ul>
 
             <div class="logout-section">
@@ -148,7 +150,7 @@ try {
                                                   </tr>";
                                         }
                                     } else {
-                                        echo "<tr><td colspan='3' style='padding: 20px 0; text-align: center; color: #a0a5b5;'>🎉 Warehouse healthy. No critical shortages.</td></tr>";
+                                        echo "<tr><td colspan='3' style='padding: 20px 0; text-align: center; color: #a0a5b5;'>Warehouse healthy. No critical shortages.</td></tr>";
                                     }
                                 ?>
                             </tbody>
@@ -203,7 +205,7 @@ try {
         document.addEventListener("DOMContentLoaded", function() {
             const ctx = document.getElementById('categoryDoughnutChart').getContext('2d');
             
-            // Ingest variables populated natively by PHP connection layer
+            // Ingest arrays natively rendered by PHP
             const labelsArray = <?php echo $categoriesJson; ?>;
             const dataArray = <?php echo $quantitiesJson; ?>;
 
