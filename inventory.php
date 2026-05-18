@@ -80,7 +80,7 @@ include 'config/db.php';
                             <th>Price</th>
                             <th>Date added</th>
                             <th>Status</th>
-                            <th style="text-align: center;">Actions</th> </tr>
+                            <th style="text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="inventoryTableBody">
@@ -122,11 +122,9 @@ include 'config/db.php';
 
                                     // Only display the delete button if the logged-in user is an Admin
                                     if ($isAdmin) {
-                                        echo "      <a href='actions/delete_product.php?id=$id' onclick='return confirm(\"Are you sure?\");' style='text-decoration: none;'>
-                                                        <button type='button' class='action-btn btn-delete' style='background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;'>
-                                                            <i class='fas fa-trash'></i> Delete
-                                                        </button>
-                                                    </a>";
+                                        echo "      <button type='button' class='action-btn btn-delete' onclick=\"openDeleteModal('$id')\" style='background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;'>
+                                                        <i class='fas fa-trash'></i> Delete
+                                                    </button>";
                                     }
 
                                     echo "      </div>
@@ -143,8 +141,7 @@ include 'config/db.php';
         </div>
     </div>
 
-   <!-- Add Product Modal -->
-    <div id="addProductModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+   <div id="addProductModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
         <div style="background-color: #fff; margin: 2% auto; padding: 25px; width: 420px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
             <h3 style="margin-top: 0; color: #333;">Add New Product</h3>
             <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
@@ -152,13 +149,13 @@ include 'config/db.php';
             <form action="../actions/add_product.php" method="POST" enctype="multipart/form-data">
                 <div style="text-align: center; margin-bottom: 15px;">
                     <div style="display: inline-block; padding: 5px; border: 1px solid #ddd; border-radius: 8px;">
-                        <img id="add_img_preview" src="../assets/img/products/"   style="width: 100px; height: 100px; object-fit: contain; display: block; border-radius: 4px;">
+                        <img id="add_img_preview" src="../assets/img/products/product_placeholder.png" style="width: 100px; height: 100px; object-fit: contain; display: block; border-radius: 4px;">
                     </div>
                 </div>
 
                 <div style="margin: 15px 0;">
                     <label style="display: block; font-weight: 500; margin-bottom: 5px;">Product Image:</label>
-                    <input type="file" name="product_image" id="add_image_input" accept="image/*"  required style="width: 100%;">
+                    <input type="file" name="product_image" id="add_image_input" accept="image/*" required style="width: 100%;">
                 </div>
 
                 <div style="margin: 15px 0;">
@@ -199,8 +196,7 @@ include 'config/db.php';
         </div>
     </div>
 
-   <!-- Edit Product Modal -->
-    <div id="editProductModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+   <div id="editProductModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
         <div style="background-color: #fff; margin: 2% auto; padding: 25px; width: 420px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
             <h3 style="margin-top: 0; color: #333;">Edit Product</h3>
             <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
@@ -257,6 +253,36 @@ include 'config/db.php';
         </div>
     </div>
 
+    <div id="deleteProductModal" class="modal" style="display:none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(3px);">
+        <div style="background-color: #fff; margin: 12% auto; padding: 30px; width: 360px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.25); text-align: center; animation: modalPopIn 0.3s ease;">
+            
+            <div style="background: #ffebee; color: #d32f2f; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 24px;">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+
+            <h3 style="margin: 0 0 10px 0; color: #2d3436; font-size: 20px; font-weight: 700; font-family: sans-serif;">Delete Product?</h3>
+            <p style="margin: 0 0 25px 0; color: #636e72; font-size: 14px; line-height: 1.5; font-family: sans-serif;">Are you sure you want to delete this product? This action cannot be undone.</p>
+            
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button type="button" onclick="closeDeleteModal()" style="flex: 1; background: #f5f6fa; color: #2d3436; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background 0.2s;">
+                    Cancel
+                </button>
+                <a id="confirmDeleteBtn" href="#" style="flex: 1; text-decoration: none;">
+                    <button type="button" style="width: 100%; background: #d32f2f; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background 0.2s;">
+                        Delete
+                    </button>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    @keyframes modalPopIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    </style>
+
     <script>
         // Modal UI Controls
         function openModal() { document.getElementById('addProductModal').style.display = "block"; }
@@ -276,6 +302,15 @@ include 'config/db.php';
         }
         function closeEditModal() { document.getElementById('editProductModal').style.display = "none"; }
 
+        // Custom Delete Modal Controls
+        function openDeleteModal(id) {
+            document.getElementById('confirmDeleteBtn').href = `actions/delete_product.php?id=${id}`;
+            document.getElementById('deleteProductModal').style.display = "block";
+        }
+        function closeDeleteModal() {
+            document.getElementById('deleteProductModal').style.display = "none";
+        }
+
         // Live Image Preview Logic
         function setupImagePreview(inputId, previewId) {
             document.getElementById(inputId).addEventListener('change', function(event) {
@@ -293,9 +328,10 @@ include 'config/db.php';
         setupImagePreview('edit_image_input', 'edit_img_preview');
 
         window.onclick = function(event) {
-            if (event.target.className === 'modal') {
+            if (event.target.className === 'modal' || event.target.id === 'deleteProductModal') {
                 closeModal();
                 closeEditModal();
+                closeDeleteModal();
             }
         }
 
@@ -325,5 +361,3 @@ include 'config/db.php';
     </script>
 </body>
 </html>
-
-

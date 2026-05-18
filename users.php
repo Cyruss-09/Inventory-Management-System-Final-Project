@@ -1,9 +1,41 @@
 <?php
 session_start();
+
+// Redirect to login if user session doesn't exist
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../auth/index.php"); 
+    exit(); 
+}
+
 // Replace this with your actual database connection file path
 include 'config/db.php'; 
 
+// Check if the currently logged-in user is an Admin
+$isAdmin = isset($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin';
+
 $message = "";
+
+// Handle Backend User Deletion Request (RESTRICTED TO ADMINS ONLY)
+if (isset($_GET['delete_id'])) {
+    if (!$isAdmin) {
+        $message = "<div style='color: #e53935; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-times-circle'></i> Access Denied: Only administrators can remove accounts.</div>";
+    } else {
+        $delete_id = (int)$_GET['delete_id'];
+        
+        // Prevent an administrator from deleting their own active session account
+        if ($delete_id == $_SESSION['user_id']) {
+            $message = "<div style='color: #e53935; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-exclamation-circle'></i> Safety Restriction: You cannot delete your own active administrator profile.</div>";
+        } else {
+            try {
+                $deleteStmt = $conn->prepare("DELETE FROM users WHERE id = ?");
+                $deleteStmt->execute([$delete_id]);
+                $message = "<div style='color: #2ed573; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-check-circle'></i> User account successfully removed from directory.</div>";
+            } catch (PDOException $e) {
+                $message = "<div style='color: #e53935; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-times-circle'></i> Operational Error: Failed to execute deletion command.</div>";
+            }
+        }
+    }
+}
 
 // Handle Form Submission: Add User
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_user'])) {
@@ -18,7 +50,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_user'])) {
 
     if (!empty($username) && !empty($fullname) && !empty($email)) {
         try {
-            // Using your exact SQL table columns
             $stmt = $conn->prepare("INSERT INTO users (fullname, username, email, password, role, date_added) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->execute([$fullname, $username, $email, $default_password, $role, $current_date]);
             
@@ -31,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_user'])) {
     }
 }
 
-// Fetch all users using your exact schema
+// Fetch ALL users cleanly to display across the directory
 $usersStmt = $conn->query("SELECT id, fullname, username, email, role, date_added FROM users ORDER BY id DESC");
 $users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -85,7 +116,8 @@ $users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
                                     <th style="padding: 12px 8px;">Username</th>
                                     <th style="padding: 12px 8px;">Email Address</th>
                                     <th style="padding: 12px 8px;">Role Privileges</th>
-                                </tr>
+                                    <th style="padding: 12px 8px; text-align: center;">Account Status</th>
+                                    <th style="padding: 12px 8px; text-align: center;">Actions</th> </tr>
                             </thead>
                             <tbody>
                                 <?php if (count($users) > 0): ?>
@@ -94,15 +126,40 @@ $users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
                                             <td style="padding: 14px 8px; font-weight: 500; color: #2d3436;"><?php echo htmlspecialchars($user['fullname']); ?></td>
                                             <td style="padding: 14px 8px; color: #4a5568;"><?php echo htmlspecialchars($user['username']); ?></td>
                                             <td style="padding: 14px 8px; color: #718096; font-size: 13px;"><?php echo htmlspecialchars($user['email']); ?></td>
+                                            
                                             <td style="padding: 14px 8px;">
-                                                <span style="background: <?php echo $user['role'] == 'Admin' ? '#feebcb; color: #c05621;' : '#edf2f7; color: #4a5568;'; ?> padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
-                                                    <?php echo htmlspecialchars($user['role']); ?>
+                                                <?php if (strtolower($user['role']) === 'admin'): ?>
+                                                    <span style="background: #feebcb; color: #c05621; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+                                                        Admin
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span style="background: #e2e8f0; color: #4a5568; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+                                                        <?php echo htmlspecialchars($user['role']); ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            
+                                            <td style="padding: 14px 8px; text-align: center;">
+                                                <span style="background: #e6fffa; color: #006d5b; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+                                                    Active
                                                 </span>
+                                            </td>
+
+                                            <td style="padding: 14px 8px; text-align: center;">
+                                                <?php if ($user['id'] == $_SESSION['user_id']): ?>
+                                                    <span style="color: #718096; font-size: 12px; font-style: italic; font-weight: 600;"><i class="fas fa-user-shield"></i> You</span>
+                                                <?php elseif ($isAdmin): ?>
+                                                    <button type="button" onclick="openDeleteUserModal('<?php echo $user['id']; ?>')" style="background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; font-size: 13px;">
+                                                        <i class="fas fa-trash-alt"></i> Remove
+                                                    </button>
+                                                <?php else: ?>
+                                                    <span style="color: #cbd5e0; font-size: 12px; font-style: italic;"><i class="fas fa-lock"></i> Secured</span>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <tr><td colspan="4" style="padding: 30px; text-align: center; color: #a0aec0;">No alternative administrative accounts located.</td></tr>
+                                    <tr><td colspan="6" style="padding: 30px; text-align: center; color: #a0aec0;">No registered user accounts found in the directory.</td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -112,5 +169,55 @@ $users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </main>
     </div>
+
+    <?php if ($isAdmin): ?>
+    <div id="deleteUserModal" class="modal-overlay" style="display:none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(3px);">
+        <div style="background-color: #fff; margin: 12% auto; padding: 30px; width: 360px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.25); text-align: center; animation: modalPopIn 0.3s ease;">
+            
+            <div style="background: #ffebee; color: #d32f2f; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 24px;">
+                <i class="fas fa-user-times"></i>
+            </div>
+
+            <h3 style="margin: 0 0 10px 0; color: #2d3436; font-size: 20px; font-weight: 700;">Remove Account?</h3>
+            <p style="margin: 0 0 25px 0; color: #636e72; font-size: 14px; line-height: 1.5;">Are you sure you want to remove this employee from the system directory? This will immediately terminate their dashboard access privileges.</p>
+            
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button type="button" onclick="closeDeleteUserModal()" style="flex: 1; background: #f5f6fa; color: #2d3436; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">
+                    Cancel
+                </button>
+                <a id="confirmUserDeleteBtn" href="#" style="flex: 1; text-decoration: none;">
+                    <button type="button" style="width: 100%; background: #d32f2f; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">
+                        Delete
+                    </button>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    @keyframes modalPopIn {
+        from { opacity: 0; transform: scale(0.95); transform: translateY(-10px); }
+        to { opacity: 1; transform: scale(1); transform: translateY(0); }
+    }
+    </style>
+
+    <script>
+        function openDeleteUserModal(userId) {
+            document.getElementById('confirmUserDeleteBtn').href = `users.php?delete_id=${userId}`;
+            document.getElementById('deleteUserModal').style.display = "block";
+        }
+
+        function closeDeleteUserModal() {
+            document.getElementById('deleteUserModal').style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            const deleteModal = document.getElementById('deleteUserModal');
+            if (event.target === deleteModal) {
+                closeDeleteUserModal();
+            }
+        }
+    </script>
+    <?php endif; ?>
 </body>
 </html>
