@@ -1,4 +1,7 @@
 <?php
+// 1. Force the timezone to match your local runtime environment (Philippine Standard Time)
+date_default_timezone_set('Asia/Manila');
+
 session_start();
 
 // Redirect to login if user session doesn't exist
@@ -40,17 +43,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['ac
             $stmt->execute([$low_stock]);
         }
 
+        // --- AUTOMATED INITIALIZATION ENGINE ---
+        // Ensure the table exists dynamically and record the save preference event
+        $conn->exec("CREATE TABLE IF NOT EXISTS activity_log (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(100) NOT NULL,
+            action TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+        
+        $currentUser = $_SESSION['username'] ?? 'Admin';
+        $logStmt = $conn->prepare("INSERT INTO activity_log (username, action, timestamp) VALUES (?, ?, ?)");
+        
+        // Explicitly pass the calculated timezone date instead of relying on default SQL server time
+        $logStmt->execute([$currentUser, "Modified global low-stock warning threshold configuration to ($low_stock units).", date('Y-m-d H:i:s')]);
+        // --------------------------------------
+
         echo json_encode(['status' => 'success', 'message' => 'System configuration parameters updated successfully.']);
-        } catch (PDOException $e) {
-            // This will send back the exact error message (e.g., "Table 'settings' doesn't exist" or "Unknown column...")
-            echo json_encode(['status' => 'error', 'message' => 'Database Error: ' . $e->getMessage()]);
-        }
+    } catch (PDOException $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Database Error: ' . $e->getMessage()]);
+    }
     exit();
 }
 
 // Default system configurations loading fallbacks
 $low_stock_current = 20; 
-$currency_current = '₱'; // Used purely for safe display purposes in your data widgets
+$currency_current = '₱'; 
 
 try {
     $getSettings = $conn->query("SELECT * FROM settings LIMIT 1");
@@ -74,15 +92,15 @@ try {
     $categoryQuery = $conn->query("SELECT category, COUNT(*) as total_skus, SUM(quantity) as stock_volume, SUM(quantity * price) as category_value FROM products GROUP BY category ORDER BY category_value DESC");
     $categoryReports = $categoryQuery->fetchAll(PDO::FETCH_ASSOC);
 
-    // 3. Activity / Audit Trail log check engine
+    // 3. Activity / Audit Trail log check engine (Pulls LIVE database entries)
     $checkLogTable = $conn->query("SHOW TABLES LIKE 'activity_log'")->fetchAll();
     if (count($checkLogTable) > 0) {
-        $auditLogs = $conn->query("SELECT username, action, timestamp FROM activity_log ORDER BY timestamp DESC LIMIT 4")->fetchAll(PDO::FETCH_ASSOC);
+        $auditLogs = $conn->query("SELECT username, action, timestamp FROM activity_log ORDER BY timestamp DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
     } else {
+        // Fallback default mock-logs if table isn't built yet
         $auditLogs = [
             ['username' => 'Admin', 'action' => 'Modified system low-stock warning metrics', 'timestamp' => date('Y-m-d H:i', strtotime('-10 mins'))],
-            ['username' => $_SESSION['username'] ?? 'Cyrus', 'action' => 'Accessed configuration settings control panel', 'timestamp' => date('Y-m-d H:i', strtotime('-1 min'))],
-            ['username' => 'Staff', 'action' => 'Updated asset quantity fields for "DARK FLASH CASE"', 'timestamp' => date('Y-m-d H:i', strtotime('-2 hours'))]
+            ['username' => $_SESSION['username'] ?? 'Cyrus', 'action' => 'Accessed configuration settings control panel', 'timestamp' => date('Y-m-d H:i', strtotime('-1 min'))]
         ];
     }
 } catch (Exception $e) {
@@ -116,7 +134,7 @@ try {
             <ul class="nav-links">
                 <li><a href="dashboard.php"><i class="fas fa-th-large"></i> Dashboard</a></li>
                 <li><a href="inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="users.php"><i class="fas fa-users-cog"></i> User Management</a></li>
+                <li><a href="users_management.php"><i class="fas fa-users-cog"></i> User Management</a></li>
                 <li class="active"><a href="settings.php"><i class="fas fa-sliders-h"></i> Settings</a></li>
             </ul>
             <div class="logout-section">
@@ -182,21 +200,25 @@ try {
                                 <h3 style="margin: 0 0 4px 0; color: #1a202c; font-size: 20px; font-weight: 700;">System Activity & Audit Trail</h3>
                                 <p style="margin: 0 0 20px 0; color: #718096; font-size: 13px;">Review the most recent administrative adjustments and security records.</p>
                                 
-                                <div style="display: flex; flex-direction: column; gap: 12px;">
-                                    <?php foreach ($auditLogs as $log): ?>
-                                        <div style="background: #f8fafc; border: 1px solid #edf2f7; padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
-                                            <div style="display: flex; align-items: center; gap: 12px;">
-                                                <div style="background: #e2e8f0; color: #4a5568; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">
-                                                    <i class="fas fa-user-shield"></i>
+                                <div style="display: flex; flex-direction: column; gap: 12px; max-height: 380px; overflow-y: auto; padding-right: 5px;">
+                                    <?php if(empty($auditLogs)): ?>
+                                        <div style="text-align: center; color: #a0aec0; padding: 25px; font-weight: 600; font-size: 13px; background: #f8fafc; border: 1px dashed #e2e8f0; border-radius: 8px;">No systemic activity items tracked inside database engine modules yet.</div>
+                                    <?php else: ?>
+                                        <?php foreach ($auditLogs as $log): ?>
+                                            <div style="background: #f8fafc; border: 1px solid #edf2f7; padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+                                                <div style="display: flex; align-items: center; gap: 12px;">
+                                                    <div style="background: #e2e8f0; color: #4a5568; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0;">
+                                                        <i class="fas fa-user-shield"></i>
+                                                    </div>
+                                                    <div>
+                                                        <span style="display: block; font-size: 13px; font-weight: 700; color: #2d3748;"><?php echo htmlspecialchars($log['username']); ?></span>
+                                                        <span style="display: block; font-size: 12px; color: #4a5568; line-height: 1.3; margin-top: 2px;"><?php echo htmlspecialchars($log['action']); ?></span>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <span style="display: block; font-size: 13px; font-weight: 700; color: #2d3748;"><?php echo htmlspecialchars($log['username']); ?></span>
-                                                    <span style="display: block; font-size: 12px; color: #4a5568; line-height: 1.3;"><?php echo htmlspecialchars($log['action']); ?></span>
-                                                </div>
+                                                <span style="font-size: 11px; font-weight: 600; color: #a0aec0; white-space: nowrap;"><i class="far fa-clock"></i> <?php echo date('M d, Y h:i A', strtotime($log['timestamp'])); ?></span>
                                             </div>
-                                            <span style="font-size: 11px; font-weight: 600; color: #a0aec0; white-space: nowrap;"><i class="far fa-clock"></i> <?php echo $log['timestamp']; ?></span>
-                                        </div>
-                                    <?php endforeach; ?>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </div>
                             </div>
 
@@ -293,6 +315,12 @@ try {
         .tab-link:hover { background: #edf2f7; color: #1a202c; }
         .tab-link.active { background: #1a1a1a !important; color: #fff !important; }
         input:focus { border-color: #1a1a1a !important; }
+        
+        /* Smooth scrolling adjustments for logs window */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 
     <script>

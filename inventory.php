@@ -34,7 +34,7 @@ include 'config/db.php';
             <ul class="nav-links">
                 <li><a href="dashboard.php"><i class="fas fa-th-large"></i> Dashboard</a></li>
                 <li class="active"><a href="inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="users.php"><i class="fas fa-users-cog"></i> User Management</a></li>
+                <li><a href="users_management.php"><i class="fas fa-users-cog"></i> User Management</a></li>
                 <li><a href="settings.php"><i class="fas fa-sliders-h"></i> Settings</a></li>
             </ul>
 
@@ -65,7 +65,14 @@ include 'config/db.php';
                             <option value="PERIPHERALS">PERIPHERALS</option>
                         </select>
                     </div>
-                    <div class="action-btns">
+                    <div class="action-btns" style="display: flex; gap: 10px; align-items: center;">
+                        <!-- Bulk Delete Button (Only shows up when items are selected) -->
+                        <?php if ($isAdmin): ?>
+                            <button id="bulkDeleteBtn" class="btn-delete" onclick="openBulkDeleteModal()" style="display: none; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                <i class="fas fa-trash-alt"></i> Delete Selected (<span id="selectedCount">0</span>)
+                            </button>
+                        <?php endif; ?>
+                        
                         <button class="btn-new" onclick="openModal()">+ New product</button>
                     </div>
                 </div>
@@ -73,7 +80,8 @@ include 'config/db.php';
                 <table class="product-table">
                     <thead>
                         <tr>
-                            <th><input type="checkbox"></th>
+                            <!-- Added id="selectAll" for global checkbox management -->
+                            <th><input type="checkbox" id="selectAll"></th>
                             <th>Product Name</th>
                             <th>Category</th>
                             <th>Quantity</th>
@@ -104,7 +112,8 @@ include 'config/db.php';
                                     $imagePath = "../assets/img/products/" . $imageName;
 
                                     echo "<tr>
-                                            <td><input type='checkbox'></td>
+                                            <!-- Added value and dynamic checkbox assignment styling hooks -->
+                                            <td><input type='checkbox' class='product-checkbox' value='$id' onchange='toggleBulkDeleteButton()'></td>
                                             <td class='product-cell'>
                                                 <img src='$imagePath' alt='$pName' style='width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px;'>
                                                 <span>" . $pName . "</span>
@@ -253,26 +262,39 @@ include 'config/db.php';
         </div>
     </div>
 
+    <!-- Single Item Delete Modal -->
     <div id="deleteProductModal" class="modal" style="display:none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(3px);">
         <div style="background-color: #fff; margin: 12% auto; padding: 30px; width: 360px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.25); text-align: center; animation: modalPopIn 0.3s ease;">
-            
             <div style="background: #ffebee; color: #d32f2f; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 24px;">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
-
-            <h3 style="margin: 0 0 10px 0; color: #2d3436; font-size: 20px; font-weight: 700; font-family: sans-serif;">Delete Product?</h3>
-            <p style="margin: 0 0 25px 0; color: #636e72; font-size: 14px; line-height: 1.5; font-family: sans-serif;">Are you sure you want to delete this product? This action cannot be undone.</p>
-            
+            <h3 style="margin: 0 0 10px 0; color: #2d3436; font-size: 20px; font-weight: 700;">Delete Product?</h3>
+            <p style="margin: 0 0 25px 0; color: #636e72; font-size: 14px; line-height: 1.5;">Are you sure you want to delete this product? This action cannot be undone.</p>
             <div style="display: flex; gap: 12px; justify-content: center;">
-                <button type="button" onclick="closeDeleteModal()" style="flex: 1; background: #f5f6fa; color: #2d3436; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background 0.2s;">
-                    Cancel
-                </button>
+                <button type="button" onclick="closeDeleteModal()" style="flex: 1; background: #f5f6fa; color: #2d3436; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">Cancel</button>
                 <a id="confirmDeleteBtn" href="#" style="flex: 1; text-decoration: none;">
-                    <button type="button" style="width: 100%; background: #d32f2f; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background 0.2s;">
-                        Delete
-                    </button>
+                    <button type="button" style="width: 100%; background: #d32f2f; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">Delete</button>
                 </a>
             </div>
+        </div>
+    </div>
+
+    <!-- Bulk Item Delete Modal -->
+    <div id="bulkDeleteModal" class="modal" style="display:none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(3px);">
+        <div style="background-color: #fff; margin: 12% auto; padding: 30px; width: 360px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.25); text-align: center; animation: modalPopIn 0.3s ease;">
+            <div style="background: #ffebee; color: #d32f2f; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 24px;">
+                <i class="fas fa-dumpster"></i>
+            </div>
+            <h3 style="margin: 0 0 10px 0; color: #2d3436; font-size: 20px; font-weight: 700;">Bulk Delete Items?</h3>
+            <p style="margin: 0 0 25px 0; color: #636e72; font-size: 14px; line-height: 1.5;">Are you sure you want to completely remove all <strong id="modalItemsCount">0</strong> selected items? This action cannot be reverted.</p>
+            <form action="../actions/bulk_delete_products.php" method="POST">
+                <!-- Hidden target array field parsed dynamically via JS -->
+                <input type="hidden" name="selected_ids" id="selectedIdsInput">
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button type="button" onclick="closeBulkDeleteModal()" style="flex: 1; background: #f5f6fa; color: #2d3436; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">Cancel</button>
+                    <button type="submit" name="bulk_delete" style="flex: 1; background: #d32f2f; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">Yes, Delete All</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -304,34 +326,81 @@ include 'config/db.php';
 
         // Custom Delete Modal Controls
         function openDeleteModal(id) {
-            document.getElementById('confirmDeleteBtn').href = `actions/delete_product.php?id=${id}`;
+            document.getElementById('confirmDeleteBtn').href = `../actions/delete_product.php?id=${id}`;
             document.getElementById('deleteProductModal').style.display = "block";
         }
         function closeDeleteModal() {
             document.getElementById('deleteProductModal').style.display = "none";
         }
 
+        // --- BULK ACTION CHECKBOX CONTROLS ---
+        const selectAllCheckbox = document.getElementById('selectAll');
+        
+        // Listen for "Select All" click events
+        if(selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                const checkBoxes = document.querySelectorAll('.product-checkbox');
+                checkBoxes.forEach(box => {
+                    box.checked = this.checked;
+                });
+                toggleBulkDeleteButton();
+            });
+        }
+
+        function toggleBulkDeleteButton() {
+            const checkedBoxes = document.querySelectorAll('.product-checkbox:checked');
+            const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+            const selectedCountDisplay = document.getElementById('selectedCount');
+            
+            if(bulkDeleteBtn) {
+                if (checkedBoxes.length > 0) {
+                    bulkDeleteBtn.style.display = "inline-flex";
+                    selectedCountDisplay.innerText = checkedBoxes.length;
+                } else {
+                    bulkDeleteBtn.style.display = "none";
+                    if(selectAllCheckbox) selectAllCheckbox.checked = false;
+                }
+            }
+        }
+
+        function openBulkDeleteModal() {
+            const checkedBoxes = document.querySelectorAll('.product-checkbox:checked');
+            const ids = Array.from(checkedBoxes).map(box => box.value);
+            
+            document.getElementById('selectedIdsInput').value = JSON.stringify(ids);
+            document.getElementById('modalItemsCount').innerText = ids.length;
+            document.getElementById('bulkDeleteModal').style.display = "block";
+        }
+
+        function closeBulkDeleteModal() {
+            document.getElementById('bulkDeleteModal').style.display = "none";
+        }
+
         // Live Image Preview Logic
         function setupImagePreview(inputId, previewId) {
-            document.getElementById(inputId).addEventListener('change', function(event) {
-                const file = event.target.files[0];
-                const preview = document.getElementById(previewId);
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) { preview.src = e.target.result; }
-                    reader.readAsDataURL(file);
-                }
-            });
+            const element = document.getElementById(inputId);
+            if(element) {
+                element.addEventListener('change', function(event) {
+                    const file = event.target.files[0];
+                    const preview = document.getElementById(previewId);
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) { preview.src = e.target.result; }
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
         }
 
         setupImagePreview('add_image_input', 'add_img_preview');
         setupImagePreview('edit_image_input', 'edit_img_preview');
 
         window.onclick = function(event) {
-            if (event.target.className === 'modal' || event.target.id === 'deleteProductModal') {
+            if (event.target.className === 'modal' || event.target.id === 'deleteProductModal' || event.target.id === 'bulkDeleteModal') {
                 closeModal();
                 closeEditModal();
                 closeDeleteModal();
+                closeBulkDeleteModal();
             }
         }
 
@@ -351,13 +420,16 @@ include 'config/db.php';
             xhr.onload = function() {
                 if (this.status == 200) {
                     tableBody.innerHTML = this.responseText;
+                    // Reset master selections after reload
+                    if(selectAllCheckbox) selectAllCheckbox.checked = false;
+                    toggleBulkDeleteButton();
                 }
             }
             xhr.send(`query=${encodeURIComponent(query)}&category=${encodeURIComponent(category)}`);
         }
 
-        searchInput.addEventListener('keyup', fetchProducts);
-        categoryFilter.addEventListener('change', fetchProducts);
+        if(searchInput) searchInput.addEventListener('keyup', fetchProducts);
+        if(categoryFilter) categoryFilter.addEventListener('change', fetchProducts);
     </script>
 </body>
 </html>

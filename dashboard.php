@@ -66,7 +66,7 @@ try {
             <ul class="nav-links">
                 <li class="active"><a href="#"><i class="fas fa-th-large"></i> Dashboard</a></li>
                 <li><a href="inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="users.php"><i class="fas fa-users-cog"></i> User Management</a></li>
+                <li><a href="users_management.php"><i class="fas fa-users-cog"></i> User Management</a></li>
                 <li><a href="settings.php"><i class="fas fa-sliders-h"></i> Settings</a></li>
             </ul>
 

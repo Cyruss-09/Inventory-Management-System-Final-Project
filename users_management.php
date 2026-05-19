@@ -15,6 +15,27 @@ $isAdmin = isset($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin'
 
 $message = "";
 
+/**
+ * HELPER FUNCTION: Log System Activities
+ * Automatically creates an audit trail entry in the activity_log table.
+ */
+function logActivity($conn, $username, $action) {
+    try {
+        // Ensure the activity_log table exists before trying to write to it
+        $conn->exec("CREATE TABLE IF NOT EXISTS activity_log (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(100) NOT NULL,
+            action TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        $logStmt = $conn->prepare("INSERT INTO activity_log (username, action, timestamp) VALUES (?, ?, ?)");
+        $logStmt->execute([$username, $action, date('Y-m-d H:i:s')]);
+    } catch (PDOException $e) {
+        // Fail silently so database log bugs don't crash core user operations
+    }
+}
+
 // Handle Backend User Deletion Request (RESTRICTED TO ADMINS ONLY)
 if (isset($_GET['delete_id'])) {
     if (!$isAdmin) {
@@ -22,14 +43,35 @@ if (isset($_GET['delete_id'])) {
     } else {
         $delete_id = (int)$_GET['delete_id'];
         
-        // Prevent an administrator from deleting their own active session account
+        // 1. Prevent an administrator from deleting their own active session account
         if ($delete_id == $_SESSION['user_id']) {
             $message = "<div style='color: #e53935; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-exclamation-circle'></i> Safety Restriction: You cannot delete your own active administrator profile.</div>";
         } else {
             try {
-                $deleteStmt = $conn->prepare("DELETE FROM users WHERE id = ?");
-                $deleteStmt->execute([$delete_id]);
-                $message = "<div style='color: #2ed573; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-check-circle'></i> User account successfully removed from directory.</div>";
+                // Fetch target user details to inspect their assigned role profile
+                $fetchUser = $conn->prepare("SELECT username, role FROM users WHERE id = ?");
+                $fetchUser->execute([$delete_id]);
+                $targetUser = $fetchUser->fetch(PDO::FETCH_ASSOC);
+
+                if (!$targetUser) {
+                    $message = "<div style='color: #e53935; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-times-circle'></i> Error: User account not found.</div>";
+                } 
+                // 2. CRITICAL PROTECTION: Prevent admins from deleting other admin accounts
+                elseif (strtolower($targetUser['role']) === 'admin') {
+                    $message = "<div style='color: #e53935; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-shield-alt'></i> Protection Error: Peer Administrative accounts cannot be removed by other administrators.</div>";
+                } else {
+                    $targetUsername = $targetUser['username'];
+
+                    // Proceed with standard deletion sequence since the target is a regular staff member
+                    $deleteStmt = $conn->prepare("DELETE FROM users WHERE id = ?");
+                    $deleteStmt->execute([$delete_id]);
+                    
+                    // SUCCESS LOG TRIGGER
+                    $currentUser = $_SESSION['username'] ?? 'Admin';
+                    logActivity($conn, $currentUser, "Permanently removed employee account: ($targetUsername) from system directory.");
+
+                    $message = "<div style='color: #2ed573; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-check-circle'></i> User account successfully removed from directory.</div>";
+                }
             } catch (PDOException $e) {
                 $message = "<div style='color: #e53935; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-times-circle'></i> Operational Error: Failed to execute deletion command.</div>";
             }
@@ -53,6 +95,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_user'])) {
             $stmt = $conn->prepare("INSERT INTO users (fullname, username, email, password, role, date_added) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->execute([$fullname, $username, $email, $default_password, $role, $current_date]);
             
+            // SUCCESS LOG TRIGGER
+            $currentUser = $_SESSION['username'] ?? 'Admin';
+            logActivity($conn, $currentUser, "Registered new account: '$username' assigned with [$role] privileges.");
+
             $message = "<div style='color: #2ed573; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-check-circle'></i> User added successfully! Default pass: Welcome123</div>";
         } catch (PDOException $e) {
             $message = "<div style='color: #e53935; margin-bottom: 15px; font-weight: 600;'><i class='fas fa-times-circle'></i> Error: Username or Email might already exist.</div>";
@@ -90,7 +136,7 @@ $users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
             <ul class="nav-links">
                 <li><a href="dashboard.php"><i class="fas fa-th-large"></i> Dashboard</a></li>
                 <li><a href="inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li class="active"><a href="users.php"><i class="fas fa-users-cog"></i> User Management</a></li>
+                <li class="active"><a href="users_management.php"><i class="fas fa-users-cog"></i> User Management</a></li>
                 <li><a href="settings.php"><i class="fas fa-sliders-h"></i> Settings</a></li>
             </ul>
 
@@ -148,6 +194,9 @@ $users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
                                             <td style="padding: 14px 8px; text-align: center;">
                                                 <?php if ($user['id'] == $_SESSION['user_id']): ?>
                                                     <span style="color: #718096; font-size: 12px; font-style: italic; font-weight: 600;"><i class="fas fa-user-shield"></i> You</span>
+                                                <!-- UI PROTECTION LAYER: Hide "Remove" button if the table row item belongs to an admin profile -->
+                                                <?php elseif (strtolower($user['role']) === 'admin'): ?>
+                                                    <span style="color: #e67e22; font-size: 12px; font-weight: 600;"><i class="fas fa-shield-alt"></i> Protected Admin</span>
                                                 <?php elseif ($isAdmin): ?>
                                                     <button type="button" onclick="openDeleteUserModal('<?php echo $user['id']; ?>')" style="background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; font-size: 13px;">
                                                         <i class="fas fa-trash-alt"></i> Remove
@@ -203,7 +252,7 @@ $users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
 
     <script>
         function openDeleteUserModal(userId) {
-            document.getElementById('confirmUserDeleteBtn').href = `users.php?delete_id=${userId}`;
+            document.getElementById('confirmUserDeleteBtn').href = `users_management.php?delete_id=${userId}`;
             document.getElementById('deleteUserModal').style.display = "block";
         }
 
